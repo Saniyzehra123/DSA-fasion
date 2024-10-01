@@ -1,0 +1,63 @@
+ // controllers/shippingController.js
+const shippingModel = require("../model/shippingModel");
+const ApiError = require("../utils/apiError");
+
+// Create a new shipping entry
+const createShipping = async (req, res) => {
+  const { order_id, customer_id, shipping_method_id, shipping_cost, order_status_id } = req.body;
+
+  if (!order_id || !customer_id || !shipping_method_id || !order_status_id) {
+    throw new ApiError(400, "Missing required fields");
+  }
+
+  const shippingId = await shippingModel.createShipping(
+    order_id, customer_id, shipping_method_id, shipping_cost, order_status_id
+  );
+
+  res.status(201).json({
+    message: "Shipping entry created successfully",
+    shippingId,
+  });
+};
+
+// Get shipping details by order ID
+const getShipping = async (req, res) => {
+  const { orderId } = req.params;
+
+  const shippingDetails = await shippingModel.getShippingByOrderId(orderId);
+
+  if (!shippingDetails) {
+    throw new ApiError(404, "Shipping details not found for this order");
+  }
+
+  res.status(200).json({
+    message: "Shipping details retrieved successfully",
+    data: shippingDetails,
+  });
+};
+
+// Update shipping status
+const updateShippingStatus = async (req, res) => {
+  const { id } = req.params;
+  const { order_status_id } = req.body;
+
+  if (!order_status_id) {
+    throw new ApiError(400,"Missing required order status");
+  }
+
+  const updatedRows = await shippingModel.updateShippingStatus(id, order_status_id);
+
+  if (updatedRows === 0) {
+    throw new ApiError(404, "Shipping entry not found");
+  }
+
+  res.status(200).json({
+    message: "Shipping status updated successfully",
+  });
+};
+
+module.exports = {
+  createShipping,
+  getShipping,
+  updateShippingStatus,
+};
