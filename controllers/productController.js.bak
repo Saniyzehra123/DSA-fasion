@@ -1,0 +1,123 @@
+// controllers/productController.js
+const db = require('../config/db');
+
+// Get details of one product with images
+exports.getProductById = (req, res, next) => {
+    const productId = req.params.id;
+
+    const query = `
+        SELECT ft.fabric_type_name, ot.occasion_name, wt.weave_name, ids.color, ids.country_of_origin, 
+               ids.item_weight, ids.net_quantity, d.price, d.percentage, 
+               img.main_image_url, img.image_url1, img.image_url2, img.image_url3, img.image_url4  
+        FROM items i
+        INNER JOIN fabric_type ft ON ft.id = i.fabric_id
+        INNER JOIN occasion_type ot ON ot.id = i.occasion_id
+        INNER JOIN item_desc ids ON ids.id = i.item_desc_id
+        INNER JOIN weave_type wt ON wt.id = i.weave_id
+        LEFT JOIN discount d ON d.id = i.discount_id
+        LEFT JOIN item_img img ON img.item_id = i.id
+        WHERE i.id = ?`;
+
+    db.query(query, [productId], (err, results) => {
+        if (err) return next(err); // Pass error to error handling middleware
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+        res.json(results[0]);
+    });
+};
+
+// Get all products with images
+exports.getAllProducts = (req, res, next) => {
+    const query = `
+        SELECT i.name, ft.fabric_type_name, ot.occasion_name, wt.weave_name, ids.color, ids.country_of_origin, 
+               ids.item_weight, ids.net_quantity, d.price, d.percentage, 
+               img.main_image_url, img.image_url1, img.image_url2, img.image_url3, img.image_url4  
+        FROM items i
+        INNER JOIN fabric_type ft ON ft.id = i.fabric_id
+        INNER JOIN occasion_type ot ON ot.id = i.occasion_id
+        INNER JOIN item_desc ids ON ids.id = i.item_desc_id
+        INNER JOIN weave_type wt ON wt.id = i.weave_id
+        LEFT JOIN discount d ON d.id = i.discount_id
+        LEFT JOIN item_img img ON img.item_id = i.id`;
+
+    db.query(query, (err, results) => {
+        if (err) return next(err);  
+        res.json(results);
+    });
+};
+
+
+
+
+
+
+
+
+// controllers/productController.js
+const db = require('../config/db');
+
+// Get filtered, sorted, and paginated products
+exports.getFilteredProducts = (req, res, next) => {
+    let { color, minPrice, maxPrice, fabricType, occasion, weaveType, sortBy, page = 1, limit = 10 } = req.query;
+
+    // Initialize base query
+    let query = `
+        SELECT i.name, ft.fabric_type_name, ot.occasion_name, wt.weave_name, ids.color, ids.country_of_origin, 
+               ids.item_weight, ids.net_quantity, d.price, d.percentage, 
+               img.main_image_url, img.image_url1, img.image_url2, img.image_url3, img.image_url4  
+        FROM items i
+        INNER JOIN fabric_type ft ON ft.id = i.fabric_id
+        INNER JOIN occasion_type ot ON ot.id = i.occasion_id
+        INNER JOIN item_desc ids ON ids.id = i.item_desc_id
+        INNER JOIN weave_type wt ON wt.id = i.weave_id
+        LEFT JOIN discount d ON d.id = i.discount_id
+        LEFT JOIN item_img img ON img.item_id = i.id
+        WHERE 1=1`;
+
+    let queryParams = [];
+
+    // Apply filters
+    if (color) {
+        query += ` AND ids.color LIKE ?`;
+        queryParams.push(`%${color}%`);
+    }
+    if (minPrice) {
+        query += ` AND d.price >= ?`;
+        queryParams.push(minPrice);
+    }
+    if (maxPrice) {
+        query += ` AND d.price <= ?`;
+        queryParams.push(maxPrice);
+    }
+    if (fabricType) {
+        query += ` AND ft.fabric_type_name = ?`;
+        queryParams.push(fabricType);
+    }
+    if (occasion) {
+        query += ` AND ot.occasion_name = ?`;
+        queryParams.push(occasion);
+    }
+    if (weaveType) {
+        query += ` AND wt.weave_name = ?`;
+        queryParams.push(weaveType);
+    }
+
+    // Sorting
+    if (sortBy === 'price_asc') {
+        query += ` ORDER BY d.price ASC`;
+    } else if (sortBy === 'price_desc') {
+        query += ` ORDER BY d.price DESC`;
+    }
+
+    // Pagination logic
+    const offset = (page - 1) * limit;
+    query += ` LIMIT ? OFFSET ?`;
+    queryParams.push(parseInt(limit), parseInt(offset));
+
+    // Execute query
+    db.query(query, queryParams, (err, results) => {
+        if (err) return next(err); // Pass error to middleware
+        res.json(results);
+    });
+};
